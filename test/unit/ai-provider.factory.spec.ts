@@ -5,9 +5,10 @@ import { FakeAIProvider } from '../../src/shared/ai/fake.provider';
 import { OpenAIProvider } from '../../src/shared/ai/openai.provider';
 
 function factory(env: Record<string, string | undefined>) {
-  return new AiProviderFactory({
-    get: (key: string) => env[key],
-  } as ConfigService);
+  return new AiProviderFactory(
+    { get: (key: string) => env[key] } as ConfigService,
+    new FakeAIProvider(),
+  );
 }
 
 const openaiRow = {

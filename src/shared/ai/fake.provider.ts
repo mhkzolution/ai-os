@@ -8,7 +8,8 @@ import type {
   ModerationRequest,
 } from './ai-response';
 
-const PRODUCT_ANALYSIS = {
+/** Frozen PRODUCT_ANALYSIS shape — keep in sync with ProductAnalysisOutput. */
+export const FAKE_PRODUCT_ANALYSIS_OUTPUT = {
   productName: 'Sample Product',
   brand: 'FakeBrand',
   category: 'General',
@@ -20,6 +21,12 @@ const PRODUCT_ANALYSIS = {
 
 @Injectable()
 export class FakeAIProvider implements AIProvider {
+  private analyzeImageContent: unknown | undefined;
+
+  setAnalyzeImageContent(content: unknown | undefined) {
+    this.analyzeImageContent = content;
+  }
+
   async chat(_request: ChatRequest): Promise<AIResponse> {
     return {
       content: 'ok',
@@ -30,9 +37,11 @@ export class FakeAIProvider implements AIProvider {
   }
 
   async analyzeImage(_request: ImageRequest): Promise<AIResponse> {
+    const content = this.analyzeImageContent ?? FAKE_PRODUCT_ANALYSIS_OUTPUT;
+    this.analyzeImageContent = undefined;
     return {
-      content: { ...PRODUCT_ANALYSIS },
-      raw: { driver: 'fake', method: 'analyzeImage' },
+      content,
+      raw: { driver: 'fake', method: 'analyzeImage', content },
       tokensInput: 120,
       tokensOutput: 40,
     };

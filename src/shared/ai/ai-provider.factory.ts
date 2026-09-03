@@ -16,11 +16,14 @@ export type ProviderRow = {
 
 @Injectable()
 export class AiProviderFactory {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly fake: FakeAIProvider,
+  ) {}
 
   get(provider: ProviderRow): AIProvider {
     if (this.useFake()) {
-      return new FakeAIProvider();
+      return this.fake;
     }
     const credentials = { baseUrl: provider.baseUrl };
     switch (provider.type) {

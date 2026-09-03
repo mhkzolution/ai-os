@@ -4,7 +4,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
 import request from 'supertest';
-import { Role } from '../../generated/prisma/enums';
+import { ModelPurpose, ProviderType, Role } from '../../generated/prisma/enums';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { AppModule } from '../../src/app.module';
@@ -27,6 +27,7 @@ describe('Jobs (integration)', () => {
   let communityId: string;
   const createdClientIds: string[] = [];
   const createdJobIds: string[] = [];
+  const createdProviderIds: string[] = [];
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -68,6 +69,36 @@ describe('Jobs (integration)', () => {
         promptKey: 'PRODUCT_ANALYZER',
       },
     });
+    await prisma.prompt.upsert({
+      where: { key_version: { key: 'PRODUCT_ANALYZER', version: 1 } },
+      update: { isActive: true },
+      create: {
+        key: 'PRODUCT_ANALYZER',
+        version: 1,
+        content: 'Return JSON only.',
+        isActive: true,
+      },
+    });
+    const provider = await prisma.provider.create({
+      data: {
+        name: `m4-openai-${Date.now()}`,
+        type: ProviderType.OPENAI,
+        apiKeyEncrypted: '',
+        isActive: true,
+        priority: 1,
+        models: {
+          create: {
+            name: 'fake-vision',
+            purpose: ModelPurpose.VISION,
+            inputPricePer1k: 0.01,
+            outputPricePer1k: 0.03,
+            currency: 'USD',
+            isActive: true,
+          },
+        },
+      },
+    });
+    createdProviderIds.push(provider.id);
 
     const login = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
@@ -93,7 +124,20 @@ describe('Jobs (integration)', () => {
   afterAll(async () => {
     const jobIds = createdJobIds.filter((id): id is string => Boolean(id));
     if (jobIds.length > 0) {
+      await prisma.costLog.deleteMany({
+        where: { usageLog: { jobId: { in: jobIds } } },
+      });
+      await prisma.usageLog.deleteMany({ where: { jobId: { in: jobIds } } });
+      await prisma.execution.deleteMany({ where: { jobId: { in: jobIds } } });
       await prisma.job.deleteMany({ where: { id: { in: jobIds } } });
+    }
+    if (createdProviderIds.length > 0) {
+      await prisma.model.deleteMany({
+        where: { providerId: { in: createdProviderIds } },
+      });
+      await prisma.provider.deleteMany({
+        where: { id: { in: createdProviderIds } },
+      });
     }
     if (createdClientIds.length > 0) {
       await prisma.clientKey.deleteMany({

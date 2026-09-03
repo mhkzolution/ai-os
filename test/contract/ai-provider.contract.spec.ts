@@ -1,5 +1,8 @@
 import { ClaudeProvider } from '../../src/shared/ai/claude.provider';
-import { FakeAIProvider } from '../../src/shared/ai/fake.provider';
+import {
+  FAKE_PRODUCT_ANALYSIS_OUTPUT,
+  FakeAIProvider,
+} from '../../src/shared/ai/fake.provider';
 import { GeminiProvider } from '../../src/shared/ai/gemini.provider';
 import { OpenAIProvider } from '../../src/shared/ai/openai.provider';
 import { OpenRouterProvider } from '../../src/shared/ai/openrouter.provider';
@@ -31,15 +34,7 @@ describe('FakeAIProvider.analyzeImage', () => {
       images: ['https://example.com/a.jpg'],
     });
 
-    expect(response.content).toEqual({
-      productName: expect.any(String),
-      brand: expect.any(String),
-      category: expect.any(String),
-      subcategory: expect.any(String),
-      tags: expect.any(Array),
-      description: expect.any(String),
-      confidence: expect.any(Number),
-    });
+    expect(response.content).toEqual(FAKE_PRODUCT_ANALYSIS_OUTPUT);
     expect(response.tokensInput).toBeGreaterThan(0);
     expect(response.tokensOutput).toBeGreaterThan(0);
     expect(response.raw).toBeDefined();
