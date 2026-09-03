@@ -8,13 +8,14 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import Redis from 'ioredis';
 import { Pool } from 'pg';
+import { REDIS_CLIENT } from '../../shared/redis/redis.constants';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(
     @Optional() @Inject('PG_POOL') private readonly pool?: Pool,
-    @Optional() @Inject('REDIS_CLIENT') private readonly redis?: Redis,
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
   ) {}
 
   @Get()

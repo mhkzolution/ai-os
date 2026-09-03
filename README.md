@@ -29,6 +29,10 @@ npm run start:worker:dev
 |---|---|
 | `GET /api/v1/health` | Liveness. No auth. `{ "status": "ok" }` |
 | `GET /api/v1/health/ready` | Readiness. Pings PostgreSQL and Redis. HTTP 503 if either is down |
+| `POST /api/v1/auth/login` | JWT login `{ email, password }` → `{ accessToken, expiresInHours }` |
+| `GET /api/v1/auth/me` | Current user. Bearer JWT |
+| `/api/v1/clients` | Client CRUD, key rotate/revoke. Bearer JWT |
+| `/api/v1/providers` `/models` `/prompts` `/tasks` | Catalog CRUD. Bearer JWT. VIEWER is read-only |
 | `/api/docs` | Swagger UI |
 
 ## Scripts
