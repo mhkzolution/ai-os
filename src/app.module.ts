@@ -8,6 +8,7 @@ import { ModelsModule } from './modules/models/models.module';
 import { PromptsModule } from './modules/prompts/prompts.module';
 import { ProvidersModule } from './modules/providers/providers.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { AiModule } from './shared/ai/ai.module';
 import { RequestIdMiddleware } from './shared/common/request-id.middleware';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { QueueModule } from './shared/queue/queue.module';
@@ -17,6 +18,7 @@ import { RedisModule } from './shared/redis/redis.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    AiModule,
     RedisModule,
     QueueModule,
     HealthModule,

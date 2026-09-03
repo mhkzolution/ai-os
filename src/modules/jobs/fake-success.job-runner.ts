@@ -8,14 +8,13 @@ export class FakeSuccessJobRunner implements JobRunner {
   constructor(private readonly prisma: PrismaService) {}
 
   async run(jobId: string): Promise<void> {
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
-    if (!job) {
-      return;
-    }
-    await this.prisma.job.update({
-      where: { id: jobId },
+    const claimed = await this.prisma.job.updateMany({
+      where: { id: jobId, status: JobStatus.PENDING },
       data: { status: JobStatus.PROCESSING },
     });
+    if (claimed.count === 0) {
+      return;
+    }
     await this.prisma.job.update({
       where: { id: jobId },
       data: {
