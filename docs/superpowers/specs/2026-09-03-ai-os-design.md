@@ -119,7 +119,8 @@ CRUD   /api/v1/providers
 CRUD   /api/v1/models
 CRUD   /api/v1/prompts
 CRUD   /api/v1/tasks                     catalog only; handlers stay in code
-GET    /api/v1/jobs                      admin can list/filter all clients
+GET    /api/v1/admin/jobs                AdminJobsController — all clients
+GET    /api/v1/admin/jobs/:id
 GET    /api/v1/usage
 GET    /api/v1/costs
 POST   /api/v1/playground/execute
@@ -129,12 +130,14 @@ GET    /api/v1/playground/runs
 **X-API-Key (execution)**
 
 ```text
-POST   /api/v1/jobs
+POST   /api/v1/jobs                      JobsController
 GET    /api/v1/jobs/:id                  own client only; other clients → 404
 POST   /api/v1/tasks/product-analysis    alias: create job with taskCode PRODUCT_ANALYSIS
 ```
 
-JWT `GET /api/v1/jobs` is the admin list (all clients). API-key `GET /api/v1/jobs/:id` is the product poll. Products cannot list other clients' jobs.
+Admin jobs and product jobs are **separate controllers**. Do not share `GET /jobs` and branch on auth inside one handler. Admin view and product poll are different use cases.
+
+ADR: `docs/superpowers/adrs/002-jobs-admin-vs-execution-routes.md`
 
 **No auth**
 
@@ -143,7 +146,7 @@ GET    /api/v1/health
 GET    /api/v1/health/ready              Postgres + Redis ping
 ```
 
-V1 login: email + password. Passwords hashed with bcrypt (cost 12). JWT secret from env. Access token payload: `{ sub, email, role }`. V1 issues a single access token (TTL 8 hours). No refresh-token endpoint.
+V1 login: email + password. Passwords hashed with bcrypt (cost 12). JWT secret from env. Access token payload: `{ sub, email, role }`. V1 issues a single access token. TTL comes from `JWT_TTL_HOURS=8` (working-day session). **No refresh-token endpoint.** ADR: `docs/superpowers/adrs/001-refresh-token-omitted.md`.
 
 ---
 
@@ -340,7 +343,19 @@ Prompt
   @@unique([key, version])
 ```
 
-Service invariant: at most one active version per `key`. Activating version N deactivates other versions of the same key. Retrieve-latest-active is `where key, isActive true order by version desc`.
+**One active version per `key` — enforced two ways (both required):**
+
+1. PostgreSQL partial unique index in SQL migration:
+
+```sql
+CREATE UNIQUE INDEX "Prompt_key_one_active"
+ON "Prompt" ("key")
+WHERE "isActive" = true;
+```
+
+2. Service transaction: activating version N sets all other rows with the same `key` to `isActive = false`, then sets N to `true`, in one `prisma.$transaction`.
+
+Retrieve-latest-active is `where key, isActive true`. The unique index guarantees at most one row. ADR: `docs/superpowers/adrs/004-prompt-one-active-version.md`.
 
 Prompts are never hardcoded in handlers. Handlers reference `promptKey` only.
 
@@ -761,7 +776,7 @@ PORT=3000
 DATABASE_URL
 REDIS_URL
 JWT_SECRET
-JWT_EXPIRES_IN=8h
+JWT_TTL_HOURS=8             # access token TTL; no refresh token in V1
 APP_ENCRYPTION_KEY          # 32-byte key for provider apiKeyEncrypted
 SEED_ADMIN_EMAIL
 SEED_ADMIN_PASSWORD
@@ -836,12 +851,27 @@ Schema already supports fallback (`Job 1—* Execution`) and extra keys (`Client
 
 ---
 
+## 15.1 Retention policy
+
+**V1 = keep forever.**
+
+`Job`, `Execution`, `UsageLog`, `CostLog`, and `PlaygroundRun` are not deleted, TTL'd, or partitioned. No archival worker.
+
+This is an explicit architecture decision, not an omission. Volume is unknown; deleting too early would break cost audit. Revisit archival only after production volume is measured.
+
+ADR: `docs/superpowers/adrs/003-retention-keep-forever.md`.
+
+---
+
 ## 16. Decision log
 
 | Decision | Choice |
 |---|---|
 | Runtime | Modular monolith, api + worker processes |
-| Human auth | JWT |
+| Human auth | JWT access token only, `JWT_TTL_HOURS=8`, no refresh |
+| Admin vs product jobs | `/api/v1/admin/jobs` (JWT) vs `/api/v1/jobs` (API key), separate controllers |
+| Prompt active | Partial unique index + service transaction |
+| Retention | Keep forever (Job, Execution, Usage, Cost, PlaygroundRun) |
 | System auth | `X-API-Key` only (not Bearer) |
 | Playground auth | JWT ADMIN+ |
 | Playground persistence | `PlaygroundRun`, not Job |
