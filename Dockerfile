@@ -3,7 +3,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+ENV DATABASE_URL=postgresql://aios:aios@localhost:5432/aios?schema=public
+RUN npx prisma generate && npm run build
 
 FROM node:22-alpine
 WORKDIR /app
