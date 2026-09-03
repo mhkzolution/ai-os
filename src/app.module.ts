@@ -5,6 +5,7 @@ import { ClientsModule } from './modules/clients/clients.module';
 import { HealthModule } from './modules/health/health.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ModelsModule } from './modules/models/models.module';
+import { PlaygroundModule } from './modules/playground/playground.module';
 import { PromptsModule } from './modules/prompts/prompts.module';
 import { ProvidersModule } from './modules/providers/providers.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -29,6 +30,7 @@ import { RedisModule } from './shared/redis/redis.module';
     PromptsModule,
     TasksModule,
     JobsModule,
+    PlaygroundModule,
   ],
 })
 export class AppModule implements NestModule {

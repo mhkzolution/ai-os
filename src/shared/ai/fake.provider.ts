@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { AIProvider } from './ai-provider.interface';
+import { ProviderTimeoutError } from './provider-timeout';
 import type {
   AIResponse,
   ChatRequest,
@@ -22,9 +23,14 @@ export const FAKE_PRODUCT_ANALYSIS_OUTPUT = {
 @Injectable()
 export class FakeAIProvider implements AIProvider {
   private analyzeImageContent: unknown | undefined;
+  private failNextAnalyzeImageWithTimeout = false;
 
   setAnalyzeImageContent(content: unknown | undefined) {
     this.analyzeImageContent = content;
+  }
+
+  failNextWithTimeout() {
+    this.failNextAnalyzeImageWithTimeout = true;
   }
 
   async chat(_request: ChatRequest): Promise<AIResponse> {
@@ -37,6 +43,10 @@ export class FakeAIProvider implements AIProvider {
   }
 
   async analyzeImage(_request: ImageRequest): Promise<AIResponse> {
+    if (this.failNextAnalyzeImageWithTimeout) {
+      this.failNextAnalyzeImageWithTimeout = false;
+      throw new ProviderTimeoutError(60_000);
+    }
     const content = this.analyzeImageContent ?? FAKE_PRODUCT_ANALYSIS_OUTPUT;
     this.analyzeImageContent = undefined;
     return {

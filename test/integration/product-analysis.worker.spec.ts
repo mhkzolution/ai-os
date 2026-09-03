@@ -97,7 +97,7 @@ describe('PRODUCT_ANALYSIS worker (integration)', () => {
         type: ProviderType.OPENAI,
         apiKeyEncrypted: '',
         isActive: true,
-        priority: 1,
+        priority: 0,
       },
     });
     providerId = provider.id;
@@ -195,6 +195,8 @@ describe('PRODUCT_ANALYSIS worker (integration)', () => {
 
     const usage = await prisma.usageLog.findMany({ where: { jobId } });
     expect(usage).toHaveLength(1);
+    expect(usage[0].executionId).toBe(executions[0].id);
+    expect(job.output).toEqual(executions[0].output);
     expect(usage[0].tokensInput).toBe(120);
     expect(usage[0].tokensOutput).toBe(40);
 
