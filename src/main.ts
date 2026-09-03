@@ -16,11 +16,13 @@ async function bootstrap() {
           styleSrc: [`'self'`, `'unsafe-inline'`],
           imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
           scriptSrc: [`'self'`, `https: 'unsafe-inline'`],
+          upgradeInsecureRequests: null,
         },
       },
     }),
   );
   app.enableCors();
+  app.enableShutdownHooks();
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('AI OS')
