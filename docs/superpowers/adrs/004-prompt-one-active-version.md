@@ -21,6 +21,18 @@ WHERE "isActive" = true;
 
 2. A Prisma transaction in `PromptsService.activate()` that deactivates siblings then activates the target.
 
+`PromptsService.activate()` MUST be a single `prisma.$transaction`:
+
+```text
+Deactivate current active for the same key
+↓
+Activate target version
+↓
+Commit
+```
+
+Never two standalone `update` calls. Two admins activating different versions concurrently can otherwise collide on `Prompt_key_one_active` (partial unique index).
+
 ## Consequences
 
 - Race between two admins activating different versions fails at the database, not as silent dual-active.

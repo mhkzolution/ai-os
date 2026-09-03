@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  VIEWER
+}
+
+enum ProviderType {
+  OPENAI
+  GEMINI
+  CLAUDE
+  OPENROUTER
+  CUSTOM
+}
+
+enum ModelPurpose {
+  CHAT
+  VISION
+  EMBEDDING
+  MODERATION
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ExecutionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ClientKeyKind {
+  PRIMARY
+  SECONDARY
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  prompts      Prompt[] @relation("PromptCreatedBy")
+  playgroundRuns PlaygroundRun[]
+}
+
+model Client {
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  name               String
+  apiSecretHash      String
+  isActive           Boolean  @default(true)
+  isSystem           Boolean  @default(false)
+  rateLimitPerMinute Int      @default(60)
+  allowedIps         String[]
+  ipAllowlistEnabled Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  keys               ClientKey[]
+  jobs               Job[]
+  usageLogs          UsageLog[]
+  playgroundRuns     PlaygroundRun[]
+}
+
+model ClientKey {
+  id         String         @id @default(cuid())
+  clientId   String
+  client     Client         @relation(fields: [clientId], references: [id])
+  kind       ClientKeyKind
+  keyHash    String         @unique
+  keyPrefix  String
+  isActive   Boolean        @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime       @default(now())
+  revokedAt  DateTime?
+  @@index([clientId, isActive])
+}
+
+model Provider {
+  id              String       @id @default(cuid())
+  name            String
+  type            ProviderType
+  apiKeyEncrypted String       @default("")
+  baseUrl         String?
+  isActive        Boolean      @default(true)
+  priority        Int
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  models          Model[]
+  executions      Execution[]
+  usageLogs       UsageLog[]
+  costLogs        CostLog[]
+  playgroundRuns  PlaygroundRun[]
+}
+
+model Model {
+  id               String       @id @default(cuid())
+  providerId       String
+  provider         Provider     @relation(fields: [providerId], references: [id])
+  name             String
+  purpose          ModelPurpose
+  inputPricePer1k  Decimal      @db.Decimal(18, 6)
+  outputPricePer1k Decimal      @db.Decimal(18, 6)
+  currency         String       @default("USD")
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  executions       Execution[]
+  usageLogs        UsageLog[]
+  costLogs         CostLog[]
+  playgroundRuns   PlaygroundRun[]
+  @@unique([providerId, name])
+  @@index([providerId, isActive])
+}
+
+model Prompt {
+  id          String   @id @default(cuid())
+  key         String
+  version     Int
+  content     String
+  description String?
+  isActive    Boolean  @default(false)
+  createdById String?
+  createdBy   User?    @relation("PromptCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  playgroundRuns PlaygroundRun[]
+  @@unique([key, version])
+  @@index([key, isActive])
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String
+  promptKey   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  jobs        Job[]
+  usageLogs   UsageLog[]
+}
+
+model Job {
+  id          String      @id @default(cuid())
+  clientId    String
+  client      Client      @relation(fields: [clientId], references: [id])
+  taskId      String
+  task        Task        @relation(fields: [taskId], references: [id])
+  status      JobStatus   @default(PENDING)
+  input       Json
+  output      Json?
+  error       Json?
+  requestId   String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  completedAt DateTime?
+  executions  Execution[]
+  usageLogs   UsageLog[]
+  @@index([clientId, createdAt])
+  @@index([status, createdAt])
+  @@index([taskId])
+  @@index([requestId])
+}
+
+model Execution {
+  id               String           @id @default(cuid())
+  jobId            String
+  job              Job              @relation(fields: [jobId], references: [id])
+  providerId       String?
+  provider         Provider?        @relation(fields: [providerId], references: [id])
+  modelId          String?
+  model            Model?           @relation(fields: [modelId], references: [id])
+  attempt          Int
+  status           ExecutionStatus
+  input            Json
+  output           Json?
+  error            Json?
+  vendorError      Json?
+  rawResponse      Json?
+  providerSnapshot Json?
+  modelSnapshot    Json?
+  promptSnapshot   Json?
+  requestId        String
+  startedAt        DateTime?
+  completedAt      DateTime?
+  durationMs       Int?
+  createdAt        DateTime         @default(now())
+  usageLogs        UsageLog[]
+  @@index([jobId, attempt])
+  @@index([requestId])
+}
+
+model PlaygroundRun {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  providerId    String
+  provider      Provider @relation(fields: [providerId], references: [id])
+  modelId       String
+  model         Model    @relation(fields: [modelId], references: [id])
+  promptId      String
+  prompt        Prompt   @relation(fields: [promptId], references: [id])
+  input         Json
+  output        Json?
+  rawResponse   Json?
+  tokensInput   Int?
+  tokensOutput  Int?
+  estimatedCost Decimal? @db.Decimal(18, 6)
+  currency      String   @default("USD")
+  error         Json?
+  requestId     String
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+  usageLogs     UsageLog[]
+}
+
+model UsageLog {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id])
+  providerId      String
+  provider        Provider @relation(fields: [providerId], references: [id])
+  modelId         String
+  model           Model    @relation(fields: [modelId], references: [id])
+  taskId          String?
+  task            Task?    @relation(fields: [taskId], references: [id])
+  jobId           String?
+  job             Job?     @relation(fields: [jobId], references: [id])
+  executionId     String?
+  execution       Execution? @relation(fields: [executionId], references: [id])
+  playgroundRunId String?
+  playgroundRun   PlaygroundRun? @relation(fields: [playgroundRunId], references: [id])
+  tokensInput     Int
+  tokensOutput    Int
+  requestCount    Int      @default(1)
+  requestId       String
+  createdAt       DateTime @default(now())
+  costLog         CostLog?
+  @@index([clientId, createdAt])
+  @@index([providerId, createdAt])
+  @@index([requestId])
+}
+
+model CostLog {
+  id         String   @id @default(cuid())
+  usageLogId String   @unique
+  usageLog   UsageLog @relation(fields: [usageLogId], references: [id])
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+  modelId    String
+  model      Model    @relation(fields: [modelId], references: [id])
+  amount     Decimal  @db.Decimal(18, 6)
+  currency   String
+  createdAt  DateTime @default(now())
+}

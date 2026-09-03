@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+generated
+.git
+.env
+*.log
+.DS_Store
+.superpowers
