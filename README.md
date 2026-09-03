@@ -32,6 +32,8 @@ npm run start:worker:dev
 | `POST /api/v1/auth/login` | JWT login `{ email, password }` → `{ accessToken, expiresInHours }` |
 | `GET /api/v1/auth/me` | Current user. Bearer JWT |
 | `/api/v1/clients` | Client CRUD, key rotate/revoke. Bearer JWT |
+| `POST /api/v1/jobs` `GET /api/v1/jobs/:id` | Product jobs. `X-API-Key`. Other-client job → 404 |
+| `GET /api/v1/admin/jobs` | Admin job list. Bearer JWT. Filters: status, clientId, taskId, date range |
 | `/api/v1/providers` `/models` `/prompts` `/tasks` | Catalog CRUD. Bearer JWT. VIEWER is read-only |
 | `/api/docs` | Swagger UI |
 
