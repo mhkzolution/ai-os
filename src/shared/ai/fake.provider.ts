@@ -1,13 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AIProvider } from './ai-provider.interface';
 import { ProviderTimeoutError } from './provider-timeout';
-import type {
-  AIResponse,
-  ChatRequest,
-  EmbeddingRequest,
-  ImageRequest,
-  ModerationRequest,
-} from './ai-response';
+import type { AIResponse } from './ai-response';
 
 /** Frozen PRODUCT_ANALYSIS shape — keep in sync with ProductAnalysisOutput. */
 export const FAKE_PRODUCT_ANALYSIS_OUTPUT = {
@@ -22,56 +16,60 @@ export const FAKE_PRODUCT_ANALYSIS_OUTPUT = {
 
 @Injectable()
 export class FakeAIProvider implements AIProvider {
-  private analyzeImageContent: unknown | undefined;
-  private failNextAnalyzeImageWithTimeout = false;
+  private analyzeImageContent: unknown;
+  private remainingTimeoutFailures = 0;
 
-  setAnalyzeImageContent(content: unknown | undefined) {
+  setAnalyzeImageContent(content: unknown) {
     this.analyzeImageContent = content;
   }
 
   failNextWithTimeout() {
-    this.failNextAnalyzeImageWithTimeout = true;
+    this.remainingTimeoutFailures = 1;
   }
 
-  async chat(_request: ChatRequest): Promise<AIResponse> {
-    return {
+  failNextTimesWithTimeout(times: number) {
+    this.remainingTimeoutFailures = times;
+  }
+
+  chat(): Promise<AIResponse> {
+    return Promise.resolve({
       content: 'ok',
       raw: { driver: 'fake', method: 'chat' },
       tokensInput: 8,
       tokensOutput: 2,
-    };
+    });
   }
 
-  async analyzeImage(_request: ImageRequest): Promise<AIResponse> {
-    if (this.failNextAnalyzeImageWithTimeout) {
-      this.failNextAnalyzeImageWithTimeout = false;
-      throw new ProviderTimeoutError(60_000);
+  analyzeImage(): Promise<AIResponse> {
+    if (this.remainingTimeoutFailures > 0) {
+      this.remainingTimeoutFailures -= 1;
+      return Promise.reject(new ProviderTimeoutError(60_000));
     }
     const content = this.analyzeImageContent ?? FAKE_PRODUCT_ANALYSIS_OUTPUT;
     this.analyzeImageContent = undefined;
-    return {
+    return Promise.resolve({
       content,
       raw: { driver: 'fake', method: 'analyzeImage', content },
       tokensInput: 120,
       tokensOutput: 40,
-    };
+    });
   }
 
-  async embeddings(_request: EmbeddingRequest): Promise<AIResponse> {
-    return {
+  embeddings(): Promise<AIResponse> {
+    return Promise.resolve({
       content: [0.1, 0.2, 0.3],
       raw: { driver: 'fake', method: 'embeddings' },
       tokensInput: 4,
       tokensOutput: 0,
-    };
+    });
   }
 
-  async moderation(_request: ModerationRequest): Promise<AIResponse> {
-    return {
+  moderation(): Promise<AIResponse> {
+    return Promise.resolve({
       content: { flagged: false },
       raw: { driver: 'fake', method: 'moderation' },
       tokensInput: 4,
       tokensOutput: 0,
-    };
+    });
   }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
 import 'dotenv/config';
 import { INestApplication, Module, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';

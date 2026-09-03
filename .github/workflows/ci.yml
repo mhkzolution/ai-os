@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aios
+          POSTGRES_PASSWORD: aios
+          POSTGRES_DB: aios
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aios"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://aios:aios@localhost:5432/aios?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-secret
+      JWT_TTL_HOURS: "8"
+      APP_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+      AI_PROVIDER_DRIVER: fake
+      PROVIDER_TIMEOUT_MS: "60000"
+      BULLMQ_QUEUE: ai-jobs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run lint:check
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build

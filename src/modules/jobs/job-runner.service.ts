@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { Execution, Job, Prisma, Task } from '../../../generated/prisma/client';
-import {
-  ExecutionStatus,
-  JobStatus,
-} from '../../../generated/prisma/enums';
+import type {
+  Execution,
+  Job,
+  Prisma,
+  Task,
+} from '../../../generated/prisma/client';
+import { ExecutionStatus, JobStatus } from '../../../generated/prisma/enums';
 import { AiProviderFactory } from '../../shared/ai/ai-provider.factory';
 import type { AIResponse } from '../../shared/ai/ai-response';
 import {
@@ -11,6 +13,7 @@ import {
   withProviderTimeout,
 } from '../../shared/ai/provider-timeout';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { JOB_MAX_ATTEMPTS } from '../../shared/queue/queue.constants';
 import { CostsService } from '../costs/costs.service';
 import { TaskRegistry } from '../tasks/registry/task.registry';
 import { TaskOutputInvalidError } from '../tasks/task-output-invalid.error';
@@ -34,18 +37,30 @@ export class JobRunnerService implements JobRunner {
   ) {}
 
   async run(jobId: string): Promise<void> {
-    const claimed = await this.prisma.job.updateMany({
-      where: { id: jobId, status: JobStatus.PENDING },
-      data: { status: JobStatus.PROCESSING },
-    });
-    if (claimed.count === 0) {
-      return;
-    }
-
-    const job = await this.prisma.job.findUniqueOrThrow({
+    const existing = await this.prisma.job.findUnique({
       where: { id: jobId },
       include: { task: true },
     });
+    if (!existing) {
+      return;
+    }
+    if (
+      existing.status === JobStatus.COMPLETED ||
+      existing.status === JobStatus.FAILED
+    ) {
+      return;
+    }
+    if (existing.status === JobStatus.PENDING) {
+      const claimed = await this.prisma.job.updateMany({
+        where: { id: jobId, status: JobStatus.PENDING },
+        data: { status: JobStatus.PROCESSING },
+      });
+      if (claimed.count === 0) {
+        return;
+      }
+    }
+
+    const job = existing;
     const attempt =
       (await this.prisma.execution.count({ where: { jobId } })) + 1;
     const startedAt = new Date();
@@ -64,7 +79,10 @@ export class JobRunnerService implements JobRunner {
       await this.executeAttempt(job, execution, startedAt);
     } catch (error) {
       const failed = this.mapError(error);
-      await this.fail(job.id, execution.id, failed, startedAt);
+      await this.failExecution(execution.id, failed, startedAt);
+      if (!failed.retryable || attempt >= JOB_MAX_ATTEMPTS) {
+        await this.failJob(job.id, failed);
+      }
       if (failed.retryable) {
         throw error;
       }
@@ -263,41 +281,40 @@ export class JobRunnerService implements JobRunner {
     );
   }
 
-  private async fail(
-    jobId: string,
+  private async failExecution(
     executionId: string,
     failed: ExecutionFailed,
     startedAt: Date,
   ) {
     const completedAt = new Date();
     const durationMs = completedAt.getTime() - startedAt.getTime();
-    const errorJson = failed.toJson() as Prisma.InputJsonValue;
-    await this.prisma.$transaction([
-      this.prisma.execution.update({
-        where: { id: executionId },
-        data: {
-          status: ExecutionStatus.FAILED,
-          error: errorJson,
-          rawResponse:
-            failed.rawResponse === undefined
-              ? undefined
-              : (failed.rawResponse as Prisma.InputJsonValue),
-          vendorError:
-            failed.vendorError === undefined
-              ? undefined
-              : (failed.vendorError as Prisma.InputJsonValue),
-          completedAt,
-          durationMs,
-        },
-      }),
-      this.prisma.job.update({
-        where: { id: jobId },
-        data: {
-          status: JobStatus.FAILED,
-          error: errorJson,
-          completedAt,
-        },
-      }),
-    ]);
+    await this.prisma.execution.update({
+      where: { id: executionId },
+      data: {
+        status: ExecutionStatus.FAILED,
+        error: failed.toJson(),
+        rawResponse:
+          failed.rawResponse === undefined
+            ? undefined
+            : (failed.rawResponse as Prisma.InputJsonValue),
+        vendorError:
+          failed.vendorError === undefined
+            ? undefined
+            : (failed.vendorError as Prisma.InputJsonValue),
+        completedAt,
+        durationMs,
+      },
+    });
+  }
+
+  private async failJob(jobId: string, failed: ExecutionFailed) {
+    await this.prisma.job.update({
+      where: { id: jobId },
+      data: {
+        status: JobStatus.FAILED,
+        error: failed.toJson(),
+        completedAt: new Date(),
+      },
+    });
   }
 }

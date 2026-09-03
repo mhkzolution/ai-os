@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import 'dotenv/config';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -10,7 +9,10 @@ import { JobsWorkerModule } from '../../src/modules/jobs/jobs-worker.module';
 import { HttpExceptionFilter } from '../../src/shared/common/http-exception.filter';
 import { PrismaService } from '../../src/shared/prisma/prisma.service';
 import { calculateCost } from '../../src/modules/costs/cost.calculator';
-import { FakeAIProvider, FAKE_PRODUCT_ANALYSIS_OUTPUT } from '../../src/shared/ai/fake.provider';
+import {
+  FakeAIProvider,
+  FAKE_PRODUCT_ANALYSIS_OUTPUT,
+} from '../../src/shared/ai/fake.provider';
 
 const ADMIN_EMAIL = 'm6-admin@aios.local';
 const PASSWORD = 'TestPass123!';
@@ -314,5 +316,24 @@ describe('PRODUCT_ANALYSIS worker (integration)', () => {
         data: { isActive: true },
       });
     }
+  });
+
+  it('retries PROVIDER_TIMEOUT twice then completes on the third execution', async () => {
+    fake.failNextTimesWithTimeout(2);
+    const jobId = await postJob();
+    const job = await waitForStatus(jobId, 'COMPLETED');
+    expect(job.status).toBe('COMPLETED');
+    const executions = await prisma.execution.findMany({
+      where: { jobId },
+      orderBy: { attempt: 'asc' },
+    });
+    expect(executions).toHaveLength(3);
+    expect(executions[0].status).toBe('FAILED');
+    expect(executions[0].error).toMatchObject({
+      code: 'PROVIDER_TIMEOUT',
+      retryable: true,
+    });
+    expect(executions[1].status).toBe('FAILED');
+    expect(executions[2].status).toBe('COMPLETED');
   });
 });

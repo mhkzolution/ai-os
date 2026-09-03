@@ -3,10 +3,7 @@ export type Closable = {
 };
 
 export type RunWorkerOptions = {
-  onSignals?: (
-    signals: NodeJS.Signals[],
-    handler: () => Promise<void>,
-  ) => void;
+  onSignals?: (signals: NodeJS.Signals[], handler: () => Promise<void>) => void;
 };
 
 const WORKER_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
@@ -27,7 +24,7 @@ export function runWorker(
         await app.close();
         resolve();
       } catch (err) {
-        reject(err);
+        reject(err instanceof Error ? err : new Error(String(err)));
       }
     };
 

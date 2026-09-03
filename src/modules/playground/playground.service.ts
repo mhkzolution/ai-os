@@ -29,11 +29,7 @@ export class PlaygroundService {
     private readonly costs: CostsService,
   ) {}
 
-  async execute(
-    userId: string,
-    dto: ExecutePlaygroundDto,
-    requestId: string,
-  ) {
+  async execute(userId: string, dto: ExecutePlaygroundDto, requestId: string) {
     const playground = await this.prisma.client.findUnique({
       where: { code: 'PLAYGROUND' },
     });

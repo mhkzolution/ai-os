@@ -1,4 +1,11 @@
-import { ArrayMinSize, IsArray, IsNumber, IsString, Max, Min } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsNumber,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class ProductAnalysisOutput {
   @IsString()

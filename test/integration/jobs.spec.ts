@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 import 'dotenv/config';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -256,5 +255,31 @@ describe('Jobs (integration)', () => {
     expect(
       res.body.items.some((job: { id: string }) => job.id === created.body.id),
     ).toBe(true);
+  });
+
+  it('rejects a client that exceeds rateLimitPerMinute with 429', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/clients')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        code: `m4_rl_${Date.now()}`,
+        name: 'Rate Limited',
+        rateLimitPerMinute: 1,
+      });
+    const apiKey = created.body.apiKey as string;
+    createdClientIds.push(created.body.client.id as string);
+
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/jobs')
+      .set('X-API-Key', apiKey)
+      .send({ taskCode: 'PRODUCT_ANALYSIS', input: VALID_INPUT });
+    expect(first.status).toBe(202);
+    createdJobIds.push(first.body.id as string);
+
+    const second = await request(app.getHttpServer())
+      .post('/api/v1/jobs')
+      .set('X-API-Key', apiKey)
+      .send({ taskCode: 'PRODUCT_ANALYSIS', input: VALID_INPUT });
+    expect(second.status).toBe(429);
   });
 });

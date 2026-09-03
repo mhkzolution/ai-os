@@ -23,19 +23,26 @@ export function pickModel<
 }
 
 export function resolveProviderAndModel<
-  M extends { isActive: boolean; purpose: ModelPurpose; createdAt: Date },
   P extends {
     isActive: boolean;
     priority: number;
     createdAt: Date;
-    models: M[];
+    models: Array<{
+      isActive: boolean;
+      purpose: ModelPurpose;
+      createdAt: Date;
+    }>;
   },
->(providers: P[], purpose: ModelPurpose): ResolveResult<P, M> {
+>(
+  providers: P[],
+  purpose: ModelPurpose,
+): ResolveResult<P, P['models'][number]> {
   const active = providers
     .filter((provider) => provider.isActive)
     .sort(
       (a, b) =>
-        a.priority - b.priority || a.createdAt.getTime() - b.createdAt.getTime(),
+        a.priority - b.priority ||
+        a.createdAt.getTime() - b.createdAt.getTime(),
     );
   if (active.length === 0) {
     return { ok: false, code: 'NO_PROVIDER' };

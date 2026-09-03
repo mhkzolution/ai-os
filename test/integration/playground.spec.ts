@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import 'dotenv/config';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -132,7 +131,9 @@ describe('Playground (integration)', () => {
       },
       select: { id: true },
     });
-    const runIds = [...new Set([...createdRunIds, ...runs.map((run) => run.id)])];
+    const runIds = [
+      ...new Set([...createdRunIds, ...runs.map((run) => run.id)]),
+    ];
     if (runIds.length > 0) {
       await prisma.costLog.deleteMany({
         where: { usageLog: { playgroundRunId: { in: runIds } } },

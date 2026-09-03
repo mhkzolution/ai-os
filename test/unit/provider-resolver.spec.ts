@@ -40,10 +40,9 @@ describe('resolveProviderAndModel', () => {
   });
 
   it('skips a higher-priority provider that has no matching model', () => {
-    const skipped = provider(
-      { id: 'p-high', name: 'High', priority: 1 },
-      [model({ purpose: ModelPurpose.CHAT })],
-    );
+    const skipped = provider({ id: 'p-high', name: 'High', priority: 1 }, [
+      model({ purpose: ModelPurpose.CHAT }),
+    ]);
     const chosen = provider(
       { id: 'p-low', name: 'Low', priority: 2, createdAt: later },
       [model({ id: 'm-vision', name: 'vision-b' })],
@@ -79,14 +78,12 @@ describe('resolveProviderAndModel', () => {
   });
 
   it('orders providers by priority then createdAt', () => {
-    const second = provider(
-      { id: 'p-second', priority: 1, createdAt: later },
-      [model({ id: 'm-second' })],
-    );
-    const first = provider(
-      { id: 'p-first', priority: 1, createdAt: now },
-      [model({ id: 'm-first' })],
-    );
+    const second = provider({ id: 'p-second', priority: 1, createdAt: later }, [
+      model({ id: 'm-second' }),
+    ]);
+    const first = provider({ id: 'p-first', priority: 1, createdAt: now }, [
+      model({ id: 'm-first' }),
+    ]);
     const result = resolveProviderAndModel(
       [second, first],
       ModelPurpose.VISION,

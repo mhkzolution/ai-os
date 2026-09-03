@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
-import { AI_JOBS_QUEUE } from './queue.constants';
+import { AI_JOBS_QUEUE, JOB_MAX_ATTEMPTS } from './queue.constants';
 
 function redisConnection(redisUrl?: string) {
   const url = new URL(redisUrl ?? 'redis://localhost:6379');
@@ -25,8 +25,11 @@ function redisConnection(redisUrl?: string) {
       name: AI_JOBS_QUEUE,
       forceDisconnectOnShutdown: true,
       defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
+        attempts: JOB_MAX_ATTEMPTS,
+        backoff: {
+          type: 'exponential',
+          delay: process.env.JEST_WORKER_ID ? 100 : 1000,
+        },
       },
     }),
   ],

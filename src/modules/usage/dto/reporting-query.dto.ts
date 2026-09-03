@@ -36,9 +36,7 @@ export class ReportingQueryDto {
   groupBy?: ReportGroupBy;
 
   @IsOptional()
-  @Transform(
-    ({ value }) => value === true || value === 'true' || value === '1',
-  )
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean()
   includePlayground?: boolean;
 }

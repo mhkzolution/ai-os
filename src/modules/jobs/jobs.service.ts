@@ -56,7 +56,7 @@ export class JobsService {
         clientId: client.id,
         taskId: task.id,
         status: JobStatus.PENDING,
-        input: input as Prisma.InputJsonValue,
+        input: input as unknown as Prisma.InputJsonValue,
         requestId,
       },
     });

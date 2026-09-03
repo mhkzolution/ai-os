@@ -45,7 +45,11 @@ npm run start:worker:dev
 | `npm run start:prod` | API from `dist/` |
 | `npm run start:worker` | Worker from `dist/` |
 | `npm run start:worker:dev` | Worker via `ts-node` |
-| `npm test` | Unit tests |
+| `npm test` | Tests (Jest, `maxWorkers: 1`) |
+| `npm run lint:check` | ESLint without `--fix` (CI) |
+| `npm run typecheck` | `tsc --noEmit` on production sources |
+| `npm run test:ci` | Jest with coverage (CI) |
+| `npm run ci` | lint + typecheck + test:ci + build |
 | `npm run build` | Compile TypeScript |
 
 ## Architecture

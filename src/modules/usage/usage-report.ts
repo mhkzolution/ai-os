@@ -1,5 +1,8 @@
 import type { Prisma } from '../../../generated/prisma/client';
-import type { ReportGroupBy, ReportingQueryDto } from './dto/reporting-query.dto';
+import type {
+  ReportGroupBy,
+  ReportingQueryDto,
+} from './dto/reporting-query.dto';
 
 export const PLAYGROUND_CLIENT_CODE = 'PLAYGROUND';
 
